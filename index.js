@@ -14,9 +14,29 @@ const phoneNumberId = process.env.PHONE_NUMBER_ID;
 const prestashopApiKey = process.env.PRESTASHOP_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 
+// Definir el token de verificación
+const VERIFY_TOKEN = "my_whatsapp_webhook_verify_token158796532145789398"; 
+
 // Ruta principal para verificar que el servidor está funcionando
 app.get('/', (req, res) => {
   res.send('Servidor de WhatsApp Webhook funcionando 🚀');
+});
+
+// Ruta de verificación del Webhook de Facebook
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  // Verifica la solicitud de Facebook
+  if (mode && token) {
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('Webhook verificado');
+      res.status(200).send(challenge);  // Devuelve el challenge para completar la verificación
+    } else {
+      res.status(403).send('Error, token de verificación incorrecto');
+    }
+  }
 });
 
 // Función para enviar mensaje a WhatsApp
@@ -100,11 +120,3 @@ app.post('/webhook', async (req, res) => {
   await sendMessage(fromNumber, responseMessage);
 
   // Responder al webhook
-  res.send('OK');
-});
-
-// Iniciar el servidor
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`🚀 Servidor escuchando en el puerto ${port}`);
-});
