@@ -120,3 +120,11 @@ app.post('/webhook', async (req, res) => {
   await sendMessage(fromNumber, responseMessage);
 
   // Responder al webhook
+  res.send('OK');
+});
+
+// Iniciar el servidor
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`🚀 Servidor escuchando en el puerto ${port}`);
+});
