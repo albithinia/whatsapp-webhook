@@ -57,7 +57,7 @@ const sendMessage = async (to, message) => {
       }
     );
   } catch (error) {
-    console.error('Error al enviar mensaje:', error);
+    console.error('Error al enviar mensaje:', error.response ? error.response.data : error.message);
   }
 };
 
@@ -80,7 +80,7 @@ const getChatGPTResponse = async (userMessage) => {
     );
     return response.data.choices[0].text.trim();
   } catch (error) {
-    console.error('Error al interactuar con ChatGPT:', error);
+    console.error('Error al interactuar con ChatGPT:', error.response ? error.response.data : error.message);
     return 'Lo siento, no pude procesar tu solicitud.';
   }
 };
@@ -95,32 +95,42 @@ const getPrestaShopData = async () => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error al obtener datos de PrestaShop:', error);
+    console.error('Error al obtener datos de PrestaShop:', error.response ? error.response.data : error.message);
     return null;
   }
 };
 
 // Endpoint para recibir mensajes de WhatsApp (Webhook)
 app.post('/webhook', async (req, res) => {
-  const incomingMessage = req.body.messages[0].text.body;
-  const fromNumber = req.body.messages[0].from;
+  try {
+    const messages = req.body.messages;
+    if (!messages || !messages[0] || !messages[0].text) {
+      return res.status(400).send('Formato de mensaje no válido');
+    }
 
-  console.log(`Mensaje recibido: ${incomingMessage} de ${fromNumber}`);
+    const incomingMessage = messages[0].text.body;
+    const fromNumber = messages[0].from;
 
-  // Llamar a ChatGPT para procesar el mensaje
-  let responseMessage = await getChatGPTResponse(incomingMessage);
+    console.log(`Mensaje recibido: ${incomingMessage} de ${fromNumber}`);
 
-  // Si el mensaje contiene la palabra 'pedido', obtenemos los datos de PrestaShop
-  if (incomingMessage.includes('pedido')) {
-    const orders = await getPrestaShopData();
-    responseMessage += `\n Información de pedidos: ${JSON.stringify(orders)}`;
+    // Llamar a ChatGPT para procesar el mensaje
+    let responseMessage = await getChatGPTResponse(incomingMessage);
+
+    // Si el mensaje contiene la palabra 'pedido', obtenemos los datos de PrestaShop
+    if (incomingMessage.toLowerCase().includes('pedido')) {
+      const orders = await getPrestaShopData();
+      responseMessage += `\n Información de pedidos: ${JSON.stringify(orders)}`;
+    }
+
+    // Enviar la respuesta a WhatsApp
+    await sendMessage(fromNumber, responseMessage);
+
+    // Responder al webhook
+    res.send('OK');
+  } catch (error) {
+    console.error('Error procesando el webhook:', error);
+    res.status(500).send('Error interno del servidor');
   }
-
-  // Enviar la respuesta a WhatsApp
-  await sendMessage(fromNumber, responseMessage);
-
-  // Responder al webhook
-  res.send('OK');
 });
 
 // Iniciar el servidor
